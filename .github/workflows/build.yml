@@ -44,7 +44,7 @@ jobs:
           go build -v -o "s3usage-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}" ./cmd/s3usage
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: s3usage-${{ matrix.goos }}-${{ matrix.goarch }}
           path: s3usage-${{ matrix.goos }}-${{ matrix.goarch }}*
@@ -60,9 +60,11 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: ./artifacts
+          pattern: s3usage-*
+          merge-multiple: true
 
       - name: Create release
         id: create_release
