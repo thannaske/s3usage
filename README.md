@@ -1,4 +1,7 @@
 # S3Usage - S3 Bucket Usage Monitor for Ceph
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/thannaske/s3usage/total?style=flat)
+![GitHub License](https://img.shields.io/github/license/thannaske/s3usage)
+![GitHub Release](https://img.shields.io/github/v/release/thannaske/s3usage?include_prereleases)
 
 S3Usage is a command-line application that monitors storage usage of S3 buckets in a Ceph cluster. It uses Ceph's RGW Admin Ops API to efficiently retrieve bucket statistics, stores the data in a SQLite database, calculates monthly averages, and provides commands to query historical usage information.
 
