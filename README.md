@@ -3,7 +3,7 @@
 ![GitHub License](https://img.shields.io/github/license/thannaske/s3usage)
 ![GitHub Release](https://img.shields.io/github/v/release/thannaske/s3usage?include_prereleases)
 
-S3Usage is a command-line application that monitors storage usage of S3 buckets in a Ceph cluster. It uses Ceph's RGW Admin Ops API to efficiently retrieve bucket statistics, stores the data in a SQLite database, calculates monthly averages, and provides commands to query historical usage information.
+S3Usage is a command-line application that monitors storage usage of S3 buckets in a Ceph cluster for billing purposes. It uses Ceph's RGW Admin Ops API to efficiently retrieve bucket statistics, stores the data in a SQLite database, calculates monthly averages, and provides commands to query historical usage information.
 
 ## Features
 
@@ -16,15 +16,13 @@ S3Usage is a command-line application that monitors storage usage of S3 buckets 
 
 ## Implementation Details
 
-This tool uses two different APIs:
-- Standard S3 API to list the buckets (as a fallback)
-- Ceph RGW Admin Ops API to fetch bucket statistics efficiently
+This tool uses the Ceph RGW Admin Ops API and is not compatibile to any other S3-compatible system other than Ceph RGW.
 
 The Admin API requests are properly signed using AWS Signature v4 authentication, which is required by Ceph RGW. Using the Admin Ops API provides significant performance improvements over listing all objects in buckets, making this tool suitable for monitoring Ceph S3 deployments with many large buckets.
 
 ## Authentication Requirements
 
-The tool uses proper AWS Signature v4 authentication for Admin API requests, identical to the authentication used by the `radosgw-admin` CLI tool. This requires:
+The tool uses the AWS Signature v4 authentication method for Admin API requests, identical to the authentication used by the `radosgw-admin` CLI tool. This requires:
 
 1. A Ceph user with administrative privileges
 2. The access and secret keys for that user
@@ -80,7 +78,7 @@ export S3_SECRET_KEY=YOUR_SECRET_KEY
 s3usage collect
 ```
 
-This command is meant to be scheduled via cron to collect data regularly.
+This command is meant to be scheduled via cron to collect data regularly. Running the collector more often will result in more datapoint and hence in a more precise monthly average usage.
 
 ### Monthly Usage Report
 
