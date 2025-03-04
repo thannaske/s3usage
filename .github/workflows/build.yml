@@ -10,7 +10,8 @@ on:
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-latest
+    # Use Ubuntu 20.04 as the build environment to ensure compatibility with older systems
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         goos: [linux, darwin, windows]
@@ -39,7 +40,7 @@ jobs:
           # Set CGO_ENABLED=1 for SQLite support
           CGO_ENABLED: 1
         run: |
-          # Install required build dependencies
+          # Install required build dependencies for Linux
           if [ "${{ matrix.goos }}" = "linux" ]; then
             sudo apt-get update
             sudo apt-get install -y gcc-multilib
@@ -47,8 +48,12 @@ jobs:
           
           # Build with appropriate settings for each OS
           if [ "${{ matrix.goos }}" = "linux" ]; then
-            # For Linux, build with standard gcc for better compatibility
-            go build -v -o "s3usage-${{ matrix.goos }}-amd64${{ matrix.ext }}" ./cmd/s3usage
+            # For Linux, build with specific flags to ensure compatibility with older glibc versions
+            # Using -linkmode external with specific flags to create a more portable binary
+            export CGO_ENABLED=1
+            export CC=gcc
+            # Use -ldflags to ensure the binary is more compatible with older systems
+            go build -v -ldflags="-linkmode external -extldflags '-Wl,--build-id=none -static-libgcc'" -o "s3usage-${{ matrix.goos }}-amd64${{ matrix.ext }}" ./cmd/s3usage
           elif [ "${{ matrix.goos }}" = "darwin" ]; then
             # For macOS, disable CGO as cross-compilation with CGO is problematic
             CGO_ENABLED=0 go build -v -o "s3usage-${{ matrix.goos }}-amd64${{ matrix.ext }}" ./cmd/s3usage
