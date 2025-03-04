@@ -10,8 +10,8 @@ on:
 jobs:
   build:
     name: Build
-    # Use Ubuntu 20.04 as the build environment to ensure compatibility with older systems
-    runs-on: ubuntu-20.04
+    # Use the latest Ubuntu runner instead of the deprecated 20.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         goos: [linux, darwin, windows]
@@ -33,6 +33,10 @@ jobs:
           go-version: '1.21'
           check-latest: true
 
+      - name: Set up Docker Buildx
+        if: matrix.goos == 'linux'
+        uses: docker/setup-buildx-action@v3
+
       - name: Build binary
         env:
           GOOS: ${{ matrix.goos }}
@@ -40,20 +44,48 @@ jobs:
           # Set CGO_ENABLED=1 for SQLite support
           CGO_ENABLED: 1
         run: |
-          # Install required build dependencies for Linux
           if [ "${{ matrix.goos }}" = "linux" ]; then
-            sudo apt-get update
-            sudo apt-get install -y gcc-multilib
-          fi
-          
-          # Build with appropriate settings for each OS
-          if [ "${{ matrix.goos }}" = "linux" ]; then
-            # For Linux, build with specific flags to ensure compatibility with older glibc versions
-            # Using -linkmode external with specific flags to create a more portable binary
-            export CGO_ENABLED=1
-            export CC=gcc
-            # Use -ldflags to ensure the binary is more compatible with older systems
-            go build -v -ldflags="-linkmode external -extldflags '-Wl,--build-id=none -static-libgcc'" -o "s3usage-${{ matrix.goos }}-amd64${{ matrix.ext }}" ./cmd/s3usage
+            # For Linux, use Docker with Debian Buster (older distro) to create a more compatible binary
+            # Create a Dockerfile for building
+            cat > Dockerfile.build << 'EOF'
+            FROM debian:buster
+            
+            # Install build essentials and Go
+            RUN apt-get update && apt-get install -y \
+                build-essential \
+                wget \
+                git \
+                ca-certificates
+            
+            # Install Go 1.21
+            RUN wget -q https://go.dev/dl/go1.21.0.linux-amd64.tar.gz && \
+                tar -C /usr/local -xzf go1.21.0.linux-amd64.tar.gz && \
+                rm go1.21.0.linux-amd64.tar.gz
+            
+            ENV PATH="/usr/local/go/bin:${PATH}"
+            ENV CGO_ENABLED=1
+            
+            # Set working directory
+            WORKDIR /build
+            
+            # Copy the source code
+            COPY . .
+            
+            # Build with static linking for maximum compatibility
+            RUN cd cmd/s3usage && go build -v -ldflags="-linkmode external -extldflags '-static'" -o /s3usage
+            EOF
+            
+            # Build using Docker
+            docker build -t s3usage-builder -f Dockerfile.build .
+            
+            # Extract the binary from the container
+            docker create --name s3usage-extract s3usage-builder
+            docker cp s3usage-extract:/s3usage "s3usage-${{ matrix.goos }}-amd64${{ matrix.ext }}"
+            docker rm s3usage-extract
+            
+            # Ensure binary is executable
+            chmod +x "s3usage-${{ matrix.goos }}-amd64${{ matrix.ext }}"
+            
           elif [ "${{ matrix.goos }}" = "darwin" ]; then
             # For macOS, disable CGO as cross-compilation with CGO is problematic
             CGO_ENABLED=0 go build -v -o "s3usage-${{ matrix.goos }}-amd64${{ matrix.ext }}" ./cmd/s3usage
