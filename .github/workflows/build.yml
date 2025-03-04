@@ -13,15 +13,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        goos: [linux, darwin, windows]
+        goos: [linux]
         # Only build for amd64 to ensure compatibility with SQLite and older CGO versions
         include:
           - goos: linux
             ext: ""
-          - goos: darwin
-            ext: ""
-          - goos: windows
-            ext: ".exe"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -44,7 +41,7 @@ jobs:
             docker run --rm \
               -v $(pwd):/src \
               -w /src \
-              golang:1.21-alpine \
+              golang:1.23-alpine \
               sh -c 'apk add --no-cache gcc musl-dev && CGO_ENABLED=1 go build -v -ldflags="-linkmode external -extldflags \"-static\"" -o "s3usage-linux-amd64" ./cmd/s3usage'
               
             # Ensure binary is executable
