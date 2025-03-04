@@ -61,28 +61,18 @@ var collectCmd = &cobra.Command{
 				usage.BucketName, usage.SizeBytes, usage.ObjectCount)
 		}
 
-		// Check if we need to calculate monthly averages
+		// Always calculate monthly averages every time we collect data
 		now := time.Now()
-		// If it's the end of the month (last day), calculate monthly averages
-		if now.Day() == getDaysInMonth(now.Year(), int(now.Month())) {
-			fmt.Println("Calculating monthly averages...")
-			err = database.CalculateMonthlyAverages(now.Year(), int(now.Month()))
-			if err != nil {
-				fmt.Printf("Error calculating monthly averages: %v\n", err)
-				return
-			}
-			fmt.Println("Monthly averages calculated successfully.")
+		fmt.Println("Calculating monthly averages...")
+		err = database.CalculateMonthlyAverages(now.Year(), int(now.Month()))
+		if err != nil {
+			fmt.Printf("Error calculating monthly averages: %v\n", err)
+			return
 		}
+		fmt.Println("Monthly averages calculated successfully.")
 
 		fmt.Println("Collection completed successfully.")
 	},
-}
-
-// getDaysInMonth returns the number of days in a month
-func getDaysInMonth(year, month int) int {
-	// Create a date in the month and go to the 0th day of the next month
-	t := time.Date(year, time.Month(month+1), 0, 0, 0, 0, 0, time.UTC)
-	return t.Day()
 }
 
 func init() {
