@@ -41,8 +41,8 @@ jobs:
             EXT=".exe"
           fi
           
-          # Build the binary
-          go build -v -o "s3usage-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}" ./cmd/s3usage
+          # Build the binary with full static linking
+          go build -v -ldflags="-s -w -extldflags=-static" -tags sqlite_omit_load_extension,netgo,osusergo -o "s3usage-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}" ./cmd/s3usage
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
