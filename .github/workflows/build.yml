@@ -47,33 +47,31 @@ jobs:
           if [ "${{ matrix.goos }}" = "linux" ]; then
             # For Linux, use Docker with Debian Buster (older distro) to create a more compatible binary
             # Create a Dockerfile for building
-            cat > Dockerfile.build << 'EOF'
-            FROM debian:buster
-            
-            # Install build essentials and Go
-            RUN apt-get update && apt-get install -y \
-                build-essential \
-                wget \
-                git \
-                ca-certificates
-            
-            # Install Go 1.21
-            RUN wget -q https://go.dev/dl/go1.21.0.linux-amd64.tar.gz && \
-                tar -C /usr/local -xzf go1.21.0.linux-amd64.tar.gz && \
-                rm go1.21.0.linux-amd64.tar.gz
-            
-            ENV PATH="/usr/local/go/bin:${PATH}"
-            ENV CGO_ENABLED=1
-            
-            # Set working directory
-            WORKDIR /build
-            
-            # Copy the source code
-            COPY . .
-            
-            # Build with static linking for maximum compatibility
-            RUN cd cmd/s3usage && go build -v -ldflags="-linkmode external -extldflags '-static'" -o /s3usage
-            EOF
+            echo 'FROM debian:buster' > Dockerfile.build
+            echo '' >> Dockerfile.build
+            echo '# Install build essentials and Go' >> Dockerfile.build
+            echo 'RUN apt-get update && apt-get install -y \\' >> Dockerfile.build
+            echo '    build-essential \\' >> Dockerfile.build
+            echo '    wget \\' >> Dockerfile.build
+            echo '    git \\' >> Dockerfile.build
+            echo '    ca-certificates' >> Dockerfile.build
+            echo '' >> Dockerfile.build
+            echo '# Install Go 1.21' >> Dockerfile.build
+            echo 'RUN wget -q https://go.dev/dl/go1.21.0.linux-amd64.tar.gz && \\' >> Dockerfile.build
+            echo '    tar -C /usr/local -xzf go1.21.0.linux-amd64.tar.gz && \\' >> Dockerfile.build
+            echo '    rm go1.21.0.linux-amd64.tar.gz' >> Dockerfile.build
+            echo '' >> Dockerfile.build
+            echo 'ENV PATH="/usr/local/go/bin:${PATH}"' >> Dockerfile.build
+            echo 'ENV CGO_ENABLED=1' >> Dockerfile.build
+            echo '' >> Dockerfile.build
+            echo '# Set working directory' >> Dockerfile.build
+            echo 'WORKDIR /build' >> Dockerfile.build
+            echo '' >> Dockerfile.build
+            echo '# Copy the source code' >> Dockerfile.build
+            echo 'COPY . .' >> Dockerfile.build
+            echo '' >> Dockerfile.build
+            echo '# Build with static linking for maximum compatibility' >> Dockerfile.build
+            echo 'RUN cd cmd/s3usage && go build -v -ldflags="-linkmode external -extldflags '\''-static'\''" -o /s3usage' >> Dockerfile.build
             
             # Build using Docker
             docker build -t s3usage-builder -f Dockerfile.build .
