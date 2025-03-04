@@ -10,7 +10,6 @@ on:
 jobs:
   build:
     name: Build
-    # Use the latest Ubuntu runner instead of the deprecated 20.04
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -33,10 +32,6 @@ jobs:
           go-version: '1.21'
           check-latest: true
 
-      - name: Set up Docker Buildx
-        if: matrix.goos == 'linux'
-        uses: docker/setup-buildx-action@v3
-
       - name: Build binary
         env:
           GOOS: ${{ matrix.goos }}
@@ -45,44 +40,15 @@ jobs:
           CGO_ENABLED: 1
         run: |
           if [ "${{ matrix.goos }}" = "linux" ]; then
-            # For Linux, use Docker with Debian Buster (older distro) to create a more compatible binary
-            # Create a Dockerfile for building
-            echo 'FROM debian:buster' > Dockerfile.build
-            echo '' >> Dockerfile.build
-            echo '# Install build essentials and Go' >> Dockerfile.build
-            echo 'RUN apt-get update && apt-get install -y \\' >> Dockerfile.build
-            echo '    build-essential \\' >> Dockerfile.build
-            echo '    wget \\' >> Dockerfile.build
-            echo '    git \\' >> Dockerfile.build
-            echo '    ca-certificates' >> Dockerfile.build
-            echo '' >> Dockerfile.build
-            echo '# Install Go 1.21' >> Dockerfile.build
-            echo 'RUN wget -q https://go.dev/dl/go1.21.0.linux-amd64.tar.gz && \\' >> Dockerfile.build
-            echo '    tar -C /usr/local -xzf go1.21.0.linux-amd64.tar.gz && \\' >> Dockerfile.build
-            echo '    rm go1.21.0.linux-amd64.tar.gz' >> Dockerfile.build
-            echo '' >> Dockerfile.build
-            echo 'ENV PATH="/usr/local/go/bin:${PATH}"' >> Dockerfile.build
-            echo 'ENV CGO_ENABLED=1' >> Dockerfile.build
-            echo '' >> Dockerfile.build
-            echo '# Set working directory' >> Dockerfile.build
-            echo 'WORKDIR /build' >> Dockerfile.build
-            echo '' >> Dockerfile.build
-            echo '# Copy the source code' >> Dockerfile.build
-            echo 'COPY . .' >> Dockerfile.build
-            echo '' >> Dockerfile.build
-            echo '# Build with static linking for maximum compatibility' >> Dockerfile.build
-            echo 'RUN cd cmd/s3usage && go build -v -ldflags="-linkmode external -extldflags '\''-static'\''" -o /s3usage' >> Dockerfile.build
-            
-            # Build using Docker
-            docker build -t s3usage-builder -f Dockerfile.build .
-            
-            # Extract the binary from the container
-            docker create --name s3usage-extract s3usage-builder
-            docker cp s3usage-extract:/s3usage "s3usage-${{ matrix.goos }}-amd64${{ matrix.ext }}"
-            docker rm s3usage-extract
-            
+            # For Linux, use a Docker image with Alpine for static compilation
+            docker run --rm \
+              -v $(pwd):/src \
+              -w /src \
+              golang:1.21-alpine \
+              sh -c 'apk add --no-cache gcc musl-dev && CGO_ENABLED=1 go build -v -ldflags="-linkmode external -extldflags \"-static\"" -o "s3usage-linux-amd64" ./cmd/s3usage'
+              
             # Ensure binary is executable
-            chmod +x "s3usage-${{ matrix.goos }}-amd64${{ matrix.ext }}"
+            chmod +x "s3usage-linux-amd64"
             
           elif [ "${{ matrix.goos }}" = "darwin" ]; then
             # For macOS, disable CGO as cross-compilation with CGO is problematic
