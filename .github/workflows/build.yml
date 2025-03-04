@@ -33,16 +33,25 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: 0
+          CGO_ENABLED: 1
         run: |
+          # Install required build dependencies for static linking
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+          
           # Set the output binary name with extension based on OS
           EXT=""
           if [ "${{ matrix.goos }}" = "windows" ]; then
             EXT=".exe"
           fi
           
-          # Build the binary with full static linking
-          go build -v -ldflags="-s -w -extldflags=-static" -tags sqlite_omit_load_extension,netgo,osusergo -o "s3usage-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}" ./cmd/s3usage
+          # Skip non-Linux builds with CGO (they won't work with cross-compilation)
+          if [ "${{ matrix.goos }}" != "linux" ]; then
+            CGO_ENABLED=0 go build -v -o "s3usage-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}" ./cmd/s3usage
+          else
+            # For Linux, use musl for static linking with CGO enabled
+            CC=musl-gcc go build -v -ldflags="-linkmode external -extldflags '-static'" -o "s3usage-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}" ./cmd/s3usage
+          fi
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
