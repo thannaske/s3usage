@@ -14,11 +14,14 @@ jobs:
     strategy:
       matrix:
         goos: [linux, darwin, windows]
-        goarch: [amd64, arm64]
-        exclude:
-          # Exclude Windows on ARM64 as it's less common
+        # Only build for amd64 to ensure compatibility with SQLite and older CGO versions
+        include:
+          - goos: linux
+            ext: ""
+          - goos: darwin
+            ext: ""
           - goos: windows
-            goarch: arm64
+            ext: ".exe"
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -32,32 +35,33 @@ jobs:
       - name: Build binary
         env:
           GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
+          GOARCH: amd64
+          # Set CGO_ENABLED=1 for SQLite support
           CGO_ENABLED: 1
         run: |
-          # Install required build dependencies for static linking
-          sudo apt-get update
-          sudo apt-get install -y musl-tools
-          
-          # Set the output binary name with extension based on OS
-          EXT=""
-          if [ "${{ matrix.goos }}" = "windows" ]; then
-            EXT=".exe"
+          # Install required build dependencies
+          if [ "${{ matrix.goos }}" = "linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y gcc-multilib
           fi
           
-          # Skip non-Linux builds with CGO (they won't work with cross-compilation)
-          if [ "${{ matrix.goos }}" != "linux" ]; then
-            CGO_ENABLED=0 go build -v -o "s3usage-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}" ./cmd/s3usage
+          # Build with appropriate settings for each OS
+          if [ "${{ matrix.goos }}" = "linux" ]; then
+            # For Linux, build with standard gcc for better compatibility
+            go build -v -o "s3usage-${{ matrix.goos }}-amd64${{ matrix.ext }}" ./cmd/s3usage
+          elif [ "${{ matrix.goos }}" = "darwin" ]; then
+            # For macOS, disable CGO as cross-compilation with CGO is problematic
+            CGO_ENABLED=0 go build -v -o "s3usage-${{ matrix.goos }}-amd64${{ matrix.ext }}" ./cmd/s3usage
           else
-            # For Linux, use musl for static linking with CGO enabled
-            CC=musl-gcc go build -v -ldflags="-linkmode external -extldflags '-static'" -o "s3usage-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}" ./cmd/s3usage
+            # For Windows, disable CGO as cross-compilation with CGO is problematic
+            CGO_ENABLED=0 go build -v -o "s3usage-${{ matrix.goos }}-amd64${{ matrix.ext }}" ./cmd/s3usage
           fi
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: s3usage-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: s3usage-${{ matrix.goos }}-${{ matrix.goarch }}*
+          name: s3usage-${{ matrix.goos }}-amd64
+          path: s3usage-${{ matrix.goos }}-amd64${{ matrix.ext }}
           if-no-files-found: error
 
   release:
